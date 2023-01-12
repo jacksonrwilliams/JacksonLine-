@@ -1,4 +1,4 @@
-#JacksonLine- Analytical Programming Final Project 
+JacksonLine- Analytical Programming Final Project 
 
 I created my own version of a surf condition report for my two favorite beaches: Ocean Beach in San Francisco and Mission Beach in San Diego. I have always found mainstream surf reports, such as those on Surfline, to be too generalized and not precise enough for individual beaches. My goal was to create a surf forecast based on data and experiences surfing these specific beaches, rather than relying on generalized reports that often prove to be inaccurate. I will continuously make changes to the conditional statements in code to reflect my changing views of what ocean and wind parameters create good surf conditions. 
 
