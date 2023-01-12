@@ -1,0 +1,498 @@
+#Jackson Williams 12/13/22
+#This code acts as a personal surf condition judge for myself pulling noaa data from an api. Then it allows for either beach selection of mission beach san diego or Ocean Beach in San Francisco. I also a reference search box for what wetsuit you 
+#would wear at a given temperature. There are two additional search boxes that use the selection from the dropdown beach selection box, that allow you to set your preference for wind and water temperature. Based on those selection a messagebox will tell 
+#you if it is too windy or too cold. The surf report is trigger using a button and it also creates a txt file called spot recommendation, with all the raw data collected using the api. 
+import arrow
+import tkinter, tkinter.messagebox, tkinter.ttk
+import csv 
+import pandas as pd 
+import numpy as np
+import requests 
+import json
+import tkinter as tk
+from tkinter import ttk
+import time 
+from datetime import datetime
+
+def close_function():
+    root.destroy()
+    
+def check_spot():
+    """This function was created to hit the API and check the daata for each spot"""
+    global noaa_swell_direction, noaa_swell_height, noaa_swell_period, noaa_water_temperature, noaa_wind_direction, noaa_windspeed
+    
+    try:
+        #Grab user selectecion from drop down
+        user_spot = spot_selection_dropdown.get()
+        
+        #Use this to debug must be comment out or deleted at the end
+        print(user_spot)
+        if user_spot == 'Mission Beach':
+            
+        
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            #Get last hour of today
+            end = arrow.now().ceil('day')
+
+            #32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+             params={
+              'lat':32.867 ,
+               'lng': -117.257 ,
+              'source': 'noaa',
+              'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+              'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+            },
+             headers={
+               'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+             }
+            )
+            #response = requests.get('https://raw.githubusercontent.com/jacksonrwilliams/learningAPI/main/surfingapi')
+            data=json.loads(response.text)
+        else:
+            # Ocean Beach Lat, Long=37.755683, -122.523699
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            # Get last hour of today
+            end = arrow.now().ceil('day')
+
+            32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+              params={
+               'lat': 37.755683,
+               'lng': -122.523699 ,
+               'source': 'noaa',
+               'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+               'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+             },
+              headers={
+                'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+              }
+            )
+        
+            
+            data=json.loads(response.text)
+
+            
+        #print(json.dumps(data,indent=4))
+        hours = data["hours"]
+
+        first_hour = hours[0]
+        swell_direction = first_hour["swellDirection"]
+        swell_height=first_hour["swellHeight"]
+        swell_period=first_hour["swellPeriod"]
+        water_temperature=first_hour["waterTemperature"]
+        wind_direction=first_hour["windDirection"]
+        wind_speed=first_hour["windSpeed"]
+
+        noaa_swell_direction = swell_direction["noaa"]
+        noaa_swell_height=swell_height["noaa"]
+        noaa_swell_period=swell_period["noaa"]
+        noaa_water_temperature_c=water_temperature["noaa"]
+        noaa_water_temperature_c=float(noaa_water_temperature_c)
+        noaa_water_temperature=((noaa_water_temperature_c * 1.8) + 32)
+        noaa_wind_direction=wind_direction["noaa"]
+        noaa_windspeed=wind_speed["noaa"]
+        
+        
+        print(f"Swell Direction= {noaa_swell_direction}, Swell Height= {noaa_swell_height}, Swell Period= {noaa_swell_period}, Water Temperature= {noaa_water_temperature}, Wind Direction= {noaa_wind_direction}, Windspeed= {noaa_windspeed}")
+        
+        # Create conditional statments to tell the user if they should go or not 
+        if 215 <= noaa_swell_direction <= 275 and noaa_swell_height >= 2.5 and noaa_swell_period >= 12 and noaa_windspeed<10:
+            tkinter.messagebox.showinfo(title = "Spot condition", message="Go surfing!")
+        else:
+            tkinter.messagebox.showwarning(title = "Spot Condition", message= "Not ideal. Don't waste your time.")
+        
+       
+        dt = datetime.now()
+
+        # Getting the timestamp
+        ts = datetime.timestamp(dt)
+
+        print("Date and time is:", dt)
+        print("Timestamp is:", ts)
+        date_time=datetime.fromtimestamp(ts)
+        #converts the timestamp 
+        str_date = date_time.strftime("%d-%m-%Y")
+        str_date_time = date_time.strftime('%H:%M:%S')
+        
+        details = {'Date':[str_date],
+                   'Time': [str_date_time],
+                   'Spot Name': [user_spot], #its the same as user_spot above
+                   'Swell Height': [noaa_swell_height],
+                   'Swell Period': [noaa_swell_period],
+                   'Swell Direction': [noaa_swell_direction],
+                   'Wind Direction': [noaa_wind_direction],
+                   'Windspeed': [noaa_windspeed]}
+        
+        surf_spot_df = pd.DataFrame(details)
+        surf_spot_df.to_csv('Spot_Recommendation.csv', index = False)
+    
+        #wind speed recommendation 
+        
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise Exception("Double check the API link or Surf Spot")
+        sys.exit(1)    
+        
+    
+    
+    
+def wind_function():
+    global noaa_swell_direction, noaa_swell_height, noaa_swell_period, noaa_water_temperature, noaa_wind_direction, noaa_windspeed
+    
+    try:
+        #Grab user selectecion from drop down
+        user_spot = spot_selection_dropdown.get()
+        
+        #Use this to debug must be comment out or deleted at the end
+        print(user_spot)
+        if user_spot == 'Mission Beach':
+            
+        
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            #Get last hour of today
+            end = arrow.now().ceil('day')
+
+            #32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+             params={
+              'lat':32.867 ,
+               'lng': -117.257 ,
+              'source': 'noaa',
+              'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+              'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+            },
+             headers={
+               'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+             }
+            )
+            #response = requests.get('https://raw.githubusercontent.com/jacksonrwilliams/learningAPI/main/surfingapi')
+            data=json.loads(response.text)
+        else:
+            # Ocean Beach Lat, Long=37.755683, -122.523699
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            # Get last hour of today
+            end = arrow.now().ceil('day')
+
+            32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+              params={
+               'lat': 37.755683,
+               'lng': -122.523699 ,
+               'source': 'noaa',
+               'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+               'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+             },
+              headers={
+                'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+              }
+            )
+        
+            
+            data=json.loads(response.text)
+
+            
+        #print(json.dumps(data,indent=4))
+        hours = data["hours"]
+
+        first_hour = hours[0]
+        swell_direction = first_hour["swellDirection"]
+        swell_height=first_hour["swellHeight"]
+        swell_period=first_hour["swellPeriod"]
+        water_temperature=first_hour["waterTemperature"]
+        wind_direction=first_hour["windDirection"]
+        wind_speed=first_hour["windSpeed"]
+
+        noaa_swell_direction = swell_direction["noaa"]
+        noaa_swell_height=swell_height["noaa"]
+        noaa_swell_period=swell_period["noaa"]
+        noaa_water_temperature_c=water_temperature["noaa"]
+        noaa_water_temperature_c=float(noaa_water_temperature)
+        noaa_water_temperature=((noaa_water_temperature_c * 1.8) + 32)
+        noaa_wind_direction=wind_direction["noaa"]
+        noaa_windspeed=wind_speed["noaa"]
+
+        print(f"Swell Direction= {noaa_swell_direction}, Swell Height= {noaa_swell_height}, Swell Period= {noaa_swell_period}, Water Temperature= {noaa_water_temperature}, Wind Direction= {noaa_wind_direction}, Windspeed= {noaa_windspeed}")
+        
+        dt = datetime.now()
+
+        # Getting the timestamp
+        ts = datetime.timestamp(dt)
+
+        print("Date and time is:", dt)
+        print("Timestamp is:", ts)
+        date_time=datetime.fromtimestamp(ts)
+        #converts the timestamp 
+        str_date = date_time.strftime("%d-%m-%Y")
+        str_date_time = date_time.strftime('%H:%M:%S')
+        
+        details = {'Date':[str_date],
+                   'Time': [str_date_time],
+                   'Spot Name': [user_spot], #its the same as user_spot above
+                   'Swell Height': [noaa_swell_height],
+                   'Swell Period': [noaa_swell_period],
+                   'Swell Direction': [noaa_swell_direction],
+                   'Wind Direction': [noaa_wind_direction],
+                   'Windspeed': [noaa_windspeed]}
+    
+        windspeed = int(wind_label_box.get())
+        
+        if windspeed <= noaa_windspeed:
+            tkinter.messagebox.showwarning(title="Surf Condition", message ="Too windy!")
+        else:
+            tkinter.messagebox.showinfo(title="Surf Condition", message ="Wind is Good!")
+            
+    except Exception as err:
+        tkinter.messagebox.showwarning("Wind Function", "Incorrect value or no value input. Please try again and input a value.")
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise Exception("Double check the API link or Surf Spot")
+        sys.exit(1)   
+    
+    
+def water_function():
+    global noaa_swell_direction, noaa_swell_height, noaa_swell_period, noaa_water_temperature, noaa_water_temperature_c, noaa_wind_direction, noaa_windspeed
+    
+    try:
+        #Grab user selectecion from drop down
+        user_spot = spot_selection_dropdown.get()
+        
+        #Use this to debug must be comment out or deleted at the end
+        print(user_spot)
+        if user_spot == 'Mission Beach':
+            
+        
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            #Get last hour of today
+            end = arrow.now().ceil('day')
+
+            #32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+             params={
+              'lat':32.867 ,
+               'lng': -117.257 ,
+              'source': 'noaa',
+              'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+              'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+            },
+             headers={
+               'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+             }
+            )
+            #response = requests.get('https://raw.githubusercontent.com/jacksonrwilliams/learningAPI/main/surfingapi')
+            data=json.loads(response.text)
+        else:
+            # Ocean Beach Lat, Long=37.755683, -122.523699
+            #Get first hour of today
+            start = arrow.now().floor('day')
+
+            # Get last hour of today
+            end = arrow.now().ceil('day')
+
+            32.867, -117.257
+            response = requests.get(
+              'https://api.stormglass.io/v2/weather/point',
+              params={
+               'lat': 37.755683,
+               'lng': -122.523699 ,
+               'source': 'noaa',
+               'params': ','.join(['waveHeight', 'wavePeriod','swellHeight','swellPeriod', 'swellDirection', 'waterTemperature','windDirection','windSpeed']),
+               'start': start.to('UTC').timestamp(),  # Convert to UTC timestamp
+               'end': end.to('UTC').timestamp()  # Convert to UTC timestamp
+             },
+              headers={
+                'Authorization': 'c0cf3424-7756-11ed-b59d-0242ac130002-c0cf34ce-7756-11ed-b59d-0242ac130002'
+              }
+            )
+        
+            
+            data=json.loads(response.text)
+
+            
+        #print(json.dumps(data,indent=4))
+        hours = data["hours"]
+
+        first_hour = hours[0]
+        swell_direction = first_hour["swellDirection"]
+        swell_height=first_hour["swellHeight"]
+        swell_period=first_hour["swellPeriod"]
+        water_temperature=first_hour["waterTemperature"]
+        wind_direction=first_hour["windDirection"]
+        wind_speed=first_hour["windSpeed"]
+
+        noaa_swell_direction = swell_direction["noaa"]
+        noaa_swell_height=swell_height["noaa"]
+        noaa_swell_period=swell_period["noaa"]
+        noaa_water_temperature_c=water_temperature["noaa"]
+        noaa_water_temperature_c = float(noaa_water_temperature_c)
+        noaa_water_temperature=((noaa_water_temperature_c * 1.8) + 32)
+        noaa_wind_direction=wind_direction["noaa"]
+        noaa_windspeed=wind_speed["noaa"]
+
+        print(f"Swell Direction= {noaa_swell_direction}, Swell Height= {noaa_swell_height}, Swell Period= {noaa_swell_period}, Water Temperature= {noaa_water_temperature}, Wind Direction= {noaa_wind_direction}, Windspeed= {noaa_windspeed}")
+        
+        dt = datetime.now()
+
+        # Getting the timestamp
+        ts = datetime.timestamp(dt)
+
+        print("Date and time is:", dt)
+        print("Timestamp is:", ts)
+        date_time=datetime.fromtimestamp(ts)
+        #converts the timestamp 
+        str_date = date_time.strftime("%d-%m-%Y")
+        str_date_time = date_time.strftime('%H:%M:%S')
+        
+        details = {'Date':[str_date],
+                   'Time': [str_date_time],
+                   'Spot Name': [user_spot], #its the same as user_spot above
+                   'Swell Height': [noaa_swell_height],
+                   'Swell Period': [noaa_swell_period],
+                   'Swell Direction': [noaa_swell_direction],
+                   'Wind Direction': [noaa_wind_direction],
+                   'Windspeed': [noaa_windspeed]}
+    
+        
+        
+
+        
+        water_temp = int(water_preference_search.get())
+        print(water_temp)
+        if noaa_water_temperature > water_temp:
+            tkinter.messagebox.showinfo(title='Water Temp', message="The water is not too cold")
+        else:
+            tkinter.messagebox.showwarning(title='Water Temp',message = "The water is too cold!")
+
+    
+    except Exception as err:
+        tkinter.messagebox.showwarning("Water Temperature Function", "Incorrect value or no value input. Please try again and input a value.")
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise Exception("Double check the API link or Surf Spot")
+        sys.exit(1)
+
+        
+        
+        
+def whatwetsuit():
+    try:
+        water_preference_search = float(temp_min_box.get())
+        print(water_preference_search)
+        
+        if water_preference_search>=75: 
+            tkinter.messagebox.showinfo("Wetsuit Selection", "No wetsuit required, make sure to wear some sunscreen.")
+        elif 75 >= water_preference_search >= 65: 
+            tkinter.messagebox.showinfo("Wetsuit Selection", ".5 to 2 mm. A jacket or a spring suit.")
+        elif 65 >= water_preference_search >= 60:  
+            tkinter.messagebox.showinfo("Wetsuit Selection", "3/2 mm. Full Suit.")
+        elif 60 >= water_preference_search >= 55:  
+            tkinter.messagebox.showinfo("Wetsuit Selection", "4/3 mm. Full Suit and Booties(optional).")
+        elif 55 >= water_preference_search >= 50:  
+            tkinter.messagebox.showinfo("Wetsuit Selection", "5/4 mm. Full hooded suit, booties and gloves or mittens.")
+        else:
+            tkinter.messagebox.showinfo("Wetsuit Selection", "6/5/4mm. Full hooded suit, booties and mittens.")
+    
+    except Exception as err:
+        tkinter.messagebox.showwarning("Wetsuit Selection", "Incorrect value or no value input. Please try again and input a value.")
+        print(f"Unexpected {err=}, {type(err)=}")
+        raise Exception("Double check the value for temperature and make sure that its an integer")
+        sys.exit(1)
+        
+        
+        
+        
+        
+        
+        
+        
+#All tkinter stuff here! 
+root=tkinter.Tk()
+root.title("JacksonLine")
+root.configure(bg= "aquamarine")
+
+
+spot_selection_label=tkinter.Label(root, text="Spot Selection")
+spot_selection_label.configure(bg="aquamarine")
+spot_selection_label.grid(column=0, row=0, padx=5, pady=5)
+
+temp_min_label = tkinter.Label(root, text='Type in a Temperature for the Water We Will Tell You What Wetsuit to Use')
+temp_min_label.configure(bg='aquamarine')
+temp_min_label.grid(column = 0, row =1,padx=5, pady=5) 
+
+temp_min_box=tkinter.Entry(root, width=5)
+temp_min_box.insert(1,1)
+temp_min_box.grid(column=1, row=1, padx=5, pady=5)
+
+water_preference_label=tkinter.Label(root, text="Water Temperature Minimum Selection")
+water_preference_label.configure(bg="aquamarine")
+water_preference_label.grid(column=0, row=4, padx=5, pady=5)
+
+water_preference_search=tkinter.Entry(root, width=5)
+water_preference_search.insert(1,1)
+water_preference_search.grid(column=1, row=4, padx=5, pady=5)
+
+temp_min_box=tkinter.Entry(root, width=5)
+temp_min_box.insert(1,1)
+temp_min_box.grid(column=1, row=1, padx=5, pady=5)
+
+wind_label = tkinter.Label(root, text='Max Wind Speed at the Spot')
+wind_label.configure(bg='aquamarine')
+wind_label.grid(column = 0, row =2,padx=5, pady=5) 
+
+wind_label_box=tkinter.Entry(root, width=5)
+wind_label_box.insert(1,1)
+wind_label_box.grid(column=1, row=2, padx=5, pady=5)
+
+
+
+spot_selection_dropdown = ttk.Combobox(root, values=["Mission Beach", "Ocean Beach"])
+spot_selection_dropdown.set("Mission Beach")
+
+# Define a function to be called when the user selects a value from the dropdown
+def on_selection(event):
+    print(event.widget.get())
+# Bind the function to the widget's "<<ComboboxSelected>>" event
+spot_selection_dropdown.bind("<<ComboboxSelected>>", on_selection)
+spot_selection_dropdown.grid(column=1, row=0)
+
+
+spot_selection_button=tkinter.Button(root, text="Surf Report", command=check_spot)
+spot_selection_button.configure(bg="light green")
+spot_selection_button.grid(column=2, row=0, padx=10, pady=10) 
+
+close_converter_button=tkinter.Button(root, text="Close Surf GUI", command=close_function)
+close_converter_button.configure(bg="orange")
+close_converter_button.grid(column=2, row=5, padx=10, pady=10)
+
+
+water_preference_button=tkinter.Button(root, text="Is it too cold for me?", command=water_function)
+water_preference_button.configure(bg="light green")
+water_preference_button.grid(column=2, row=4, padx=10, pady=10) 
+
+wind_preference_button=tkinter.Button(root, text="Is it too windy for me?", command=wind_function)
+wind_preference_button.configure(bg="light green")
+wind_preference_button.grid(column=2, row=2, padx=10, pady=10) 
+
+wetsuit_water_temperature_button=tkinter.Button(root, text="What wetsuit should I wear today?", command=whatwetsuit)
+wetsuit_water_temperature_button.configure(bg="light green")
+wetsuit_water_temperature_button.grid(column=2, row=1, padx=10, pady=10) 
+
+root.mainloop()
