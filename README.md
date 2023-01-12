@@ -5,6 +5,7 @@ I created my own version of a surf condition report for my two favorite beaches:
 In addition to the surf forecast, I included additional features such as a wetsuit temperature search and buttons for checking if it's too cold or too windy for surfing. This allows me to make informed decisions about whether I want to brave the conditions on any given day. Overall, I am excited to have my own reliable surf forecast based on my own expertise and experience.
 
 ##My GUI 
+
 <img width="468" alt="image" src="https://user-images.githubusercontent.com/116693034/212137666-a1e3175d-539a-4a71-a7f4-a5ff40f25966.png">
 
 - Spot Selection: the user will either select Mission Beach, SD or Ocean Beach, SF and hit the surf report button which produces a messagebox on whether you should go surfing or not. This also will produce a csv file with the conditions from the api at that given hour. 
